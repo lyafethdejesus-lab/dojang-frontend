@@ -784,7 +784,7 @@ const EditStockModal = ({item,data,api,onToast,onClose}) => {
 // ─── LOGIN — FLUJO 3 PASOS ────────────────────────────────────────────────────
 // Lookup table: id numérico → {user, role, periodo}
 const ID_LOOKUP = {
-  "0001": {user:"admin",    role:"admin",   nombre:"Maestro Ramírez",  periodo:"Abr–May 2026"},
+  "0001": {user:"maestro",  role:"admin",   nombre:"Maestro Ramírez",  periodo:"Abr–May 2026"},
   "1001": {user:"carlos_m", role:"alumno",  nombre:"Carlos Mendoza",   periodo:"Mar–May 2026"},
   "1002": {user:"sofia_r",  role:"alumno",  nombre:"Sofía Ruiz",       periodo:"Mar–May 2026"},
   "1003": {user:"diego_t",  role:"alumno",  nombre:"Diego Torres",     periodo:"Mar–May 2026"},
@@ -1578,12 +1578,62 @@ const StudentPortal = ({session,api,onLogout}) => {
 function App() {
   const [db,setDb]=useState(INIT_DB);
   const [session,setSession]=useState(null);
+  const [loading,setLoading]=useState(false);
   const api=createApi(db,setDb);
+
+  const loadApiData = async () => {
+    try {
+      const [students, payments, exams] = await Promise.all([
+        apiFetch("/api/alumnos"),
+        apiFetch("/api/pagos"),
+        apiFetch("/api/examenes"),
+      ]);
+      const mappedStudents = Array.isArray(students) ? students.map(a => ({
+        id: a.num_control, name: a.nombre,
+        age: a.fecha_nacimiento ? Math.floor((new Date()-new Date(a.fecha_nacimiento))/(365.25*24*60*60*1000)) : 0,
+        belt: a.cinta_color||"Blanco", parent: a.responsable_nombre||"",
+        phone:"", email:"", joined: a.fecha_ingreso||todayStr(), active:true,
+        user: a.num_control, pass:"1234",
+        personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}
+      })) : [];
+      const mappedPayments = Array.isArray(payments) ? payments.map(p => ({
+        id: String(p.id_pago), sid: p.num_control_responsable,
+        concept: p.tipo_pago||"Pago", total: parseFloat(p.monto_total)||0,
+        paid: parseFloat(p.monto_abonado)||0,
+        installments: p.metodo_pago==="A plazos"?4:1,
+        instPaid: p.estado_pago==="Liquidado"?1:0,
+        instAmt: parseFloat(p.monto_total)||0, start: p.fecha_pago||todayStr(),
+        nextDue:null, status: p.estado_pago==="Liquidado"?"liquidado":p.estado_pago==="Vencido"?"vencido":"en_proceso", notes:""
+      })) : [];
+      const mappedExams = Array.isArray(exams) ? exams.map(x => ({
+        id: String(x.id_examen), sid: x.num_control_alumno,
+        date: x.fecha||todayStr(), fromBelt:"Blanco",
+        toBelt: x.cinta_aspirada_color||"Amarillo",
+        passed: x.resultado==="Aprobado", notes: x.observaciones||""
+      })) : [];
+      setDb(prev=>({...prev,
+        students: mappedStudents.length>0?mappedStudents:prev.students,
+        payments: mappedPayments.length>0?mappedPayments:prev.payments,
+        exams: mappedExams.length>0?mappedExams:prev.exams,
+      }));
+    } catch(e){ console.log("Usando datos locales:",e); }
+  };
+
   const handleLogin=useCallback(async (user,pass)=>{
+    setLoading(true);
     const result=await api.login(user,pass);
-    if(result) setSession(result);
+    if(result){ await loadApiData(); setSession(result); }
+    setLoading(false);
     return result;
   },[db]);
+
+  if(loading) return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#0b0b12",flexDirection:"column",gap:16}}>
+      <div style={{fontSize:40}}>🥋</div>
+      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:3,color:"#c01212"}}>CARGANDO...</div>
+      <div style={{color:"#555577",fontSize:13}}>Conectando con el servidor...</div>
+    </div>
+  );
   if(!session) return <LoginPage onLogin={handleLogin}/>;
   if(session.role==="admin") return <AdminLayout session={session} api={api} onLogout={()=>setSession(null)}/>;
   return <StudentPortal session={session} api={api} onLogout={()=>setSession(null)}/>;
