@@ -1581,12 +1581,14 @@ function App() {
   const [loading,setLoading]=useState(false);
   const api=createApi(db,setDb);
 
-  const loadApiData = async () => {
+  const loadApiData = async (tok) => {
     try {
+      const h = {"Content-Type":"application/json","Authorization":`Bearer ${tok}`};
+      const fetchJ = (url) => fetch(API_URL+url,{headers:h}).then(r=>r.json());
       const [students, payments, exams] = await Promise.all([
-        apiFetch("/api/alumnos"),
-        apiFetch("/api/pagos"),
-        apiFetch("/api/examenes"),
+        fetchJ("/api/alumnos"),
+        fetchJ("/api/pagos"),
+        fetchJ("/api/examenes"),
       ]);
       const mappedStudents = Array.isArray(students) ? students.map(a => ({
         id: a.num_control, name: a.nombre,
@@ -1622,7 +1624,7 @@ function App() {
   const handleLogin=useCallback(async (user,pass)=>{
     setLoading(true);
     const result=await api.login(user,pass);
-    if(result){ await loadApiData(); setSession(result); }
+    if(result){ await loadApiData(_token); setSession(result); }
     setLoading(false);
     return result;
   },[db]);
