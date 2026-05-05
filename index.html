@@ -761,7 +761,7 @@ const ID_LOOKUP = {
 const ROLE_LABELS = {admin:"Administrador", alumno:"Alumno", maestro:"Instructor", representante:"Representante"};
 const ROLE_COLORS = {admin:"#c01212", alumno:"#1d4ed8", maestro:"#b8800e", representante:"#166534"};
 
-const LoginPage = ({onLogin}) => {
+const LoginPage = ({onLogin, db}) => {
   const [step, setStep]     = useState(1);   // 1=ID, 2=confirm, 3=pass
   const [idVal, setIdVal]   = useState("");
   const [found, setFound]   = useState(null);
@@ -787,7 +787,16 @@ const LoginPage = ({onLogin}) => {
 
   const handleIdSubmit = (e) => {
     e.preventDefault();
-    const match = ID_LOOKUP[idVal.trim()];
+    const trimmed = idVal.trim();
+    // Primero busca en el lookup estático (admin y demos)
+    let match = ID_LOOKUP[trimmed];
+    // Si no está ahí, busca en los alumnos reales cargados en db
+    if (!match && db && db.students) {
+      const alumno = db.students.find(s => s.id === trimmed || s.user === trimmed);
+      if (alumno) {
+        match = {user: alumno.user || alumno.id, role: "alumno", nombre: alumno.name, periodo: ""};
+      }
+    }
     if (!match) {
       setErr("");
       triggerShake();
@@ -796,17 +805,8 @@ const LoginPage = ({onLogin}) => {
     }
     setFound(match);
     setErr("");
-    setStep(2); 
+    setStep(2);
     setTimeout(()=>passRef.current?.focus(), 350);
-  };
-
-  const handlePassSubmit = async (e) => {
-  e.preventDefault();
-  const result = await onLogin(found.user, pass);
-  if (!result) {
-    triggerShake();
-    setErr("Contraseña incorrecta.");
-  }
   };
 
   const resetFlow = () => {
@@ -1608,7 +1608,7 @@ function App() {
       <div style={{color:"#555577",fontSize:13}}>Conectando con el servidor...</div>
     </div>
   );
-  if(!session) return <LoginPage onLogin={handleLogin}/>;
+  if(!session) return <LoginPage onLogin={handleLogin} db={db}/>;
   if(session.role==="admin") return <AdminLayout session={session} api={api} onLogout={()=>setSession(null)}/>;
   return <StudentPortal session={session} api={api} onLogout={()=>setSession(null)}/>;
 }
