@@ -227,6 +227,17 @@ const INIT_DB = {
 // ─── UTILIDADES ───────────────────────────────────────────────────────────────
 let _seq = 0;
 const uid = (p) => `${p}${Date.now()}${_seq++}`;
+const genStudentId = (name, existingIds=[]) => {
+  const year = new Date().getFullYear();
+  const parts = name.trim().toUpperCase().split(/\s+/).filter(Boolean);
+  const initials = parts.length >= 2
+    ? parts[0][0] + parts[parts.length-1][0]
+    : (parts[0]||"XX").slice(0,2);
+  const base = `AT-${year}${initials}`;
+  const taken = existingIds.filter(id=>id.startsWith(base)).map(id=>parseInt(id.slice(-3))||0);
+  const next = taken.length ? Math.max(...taken)+1 : 1;
+  return `${base}${String(next).padStart(3,"0")}`;
+};
 const todayStr = () => new Date().toISOString().split("T")[0];
 const parseDate = (s) => new Date(s + "T12:00:00");
 const fmtDate = (d) => {
@@ -960,17 +971,22 @@ const LoginPage = ({onLogin}) => {
 };
 
 // ─── STUDENT FORM ─────────────────────────────────────────────────────────────
-const StudentForm = ({initial,onSave,onClose}) => {
+const StudentForm = ({initial,onSave,onClose,api}) => {
   const empty={name:"",age:"",belt:"Blanco",parent:"",phone:"",email:"",joined:todayStr(),active:true,user:"",pass:"1234",personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}};
   const [f,setF] = useState(initial||empty);
   const set = (k,v)=>setF(p=>({...p,[k]:v}));
   const setP = (k,v)=>setF(p=>({...p,personal:{...p.personal,[k]:v}}));
-  const submit = (e)=>{e.preventDefault();onSave(f);onClose();};
+  const handleName = (v) => {
+    const existingIds = api ? api.getStudents().map(s=>s.id) : [];
+    const newId = v.trim().length>=2 ? genStudentId(v, existingIds) : "";
+    setF(p=>({...p, name:v, user: initial ? p.user : newId}));
+  };
+  const submit = (e)=>{e.preventDefault();onSave({...f,id:f.user});onClose();};
   return(
     <form onSubmit={submit}>
       <div style={{fontSize:11,color:"#c01212",textTransform:"uppercase",letterSpacing:.8,marginBottom:12}}>Datos del alumno</div>
       <div className="form-row form-row-2">
-        <div><label className="tk-label">Nombre completo</label><input className="tk-input" required value={f.name} onChange={e=>set("name",e.target.value)}/></div>
+        <div><label className="tk-label">Nombre completo</label><input className="tk-input" required value={f.name} onChange={e=>handleName(e.target.value)}/></div>
         <div><label className="tk-label">Edad</label><input className="tk-input" type="number" required min="3" max="99" value={f.age} onChange={e=>set("age",+e.target.value)}/></div>
       </div>
       <div className="form-row form-row-2">
@@ -995,7 +1011,7 @@ const StudentForm = ({initial,onSave,onClose}) => {
       <div style={{borderTop:"1px solid #1e1e2e",paddingTop:14,marginTop:8}}>
         <div style={{fontSize:11,color:"#555577",letterSpacing:.8,textTransform:"uppercase",marginBottom:10}}>Acceso al portal</div>
         <div className="form-row form-row-2">
-          <div><label className="tk-label">Usuario</label><input className="tk-input" required value={f.user} onChange={e=>set("user",e.target.value)}/></div>
+          <div><label className="tk-label">ID / Usuario</label><input className="tk-input" readOnly style={{opacity:.7,cursor:"not-allowed"}} value={f.user} placeholder="Se genera al escribir el nombre"/></div>
           <div><label className="tk-label">Contraseña</label><input className="tk-input" value={f.pass} onChange={e=>set("pass",e.target.value)}/></div>
         </div>
       </div>
@@ -1048,7 +1064,7 @@ const AdminStudents = ({api}) => {
           </tbody>
         </table>
       </div>
-      {modal==="add"&&<Modal title="NUEVO ALUMNO" onClose={()=>setModal(null)} lg><StudentForm onSave={d=>api.addStudent(d)} onClose={()=>setModal(null)}/></Modal>}
+      {modal==="add"&&<Modal title="NUEVO ALUMNO" onClose={()=>setModal(null)} lg><StudentForm api={api} onSave={d=>api.addStudent(d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.edit&&<Modal title="EDITAR ALUMNO" onClose={()=>setModal(null)} lg><StudentForm initial={modal.edit} onSave={d=>api.updateStudent(modal.edit.id,d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.del&&<ConfirmModal message="¿Eliminar este alumno? Esta acción no se puede deshacer." onConfirm={()=>api.deleteStudent(modal.del)} onClose={()=>setModal(null)}/>}
       {modal?.exams&&<StudentExamsModal student={modal.exams} api={api} onClose={()=>setModal(null)}/>}
