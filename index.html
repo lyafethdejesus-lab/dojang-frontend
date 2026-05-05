@@ -829,17 +829,17 @@ const LoginPage = ({onLogin}) => {
     }
     setFound(match);
     setErr("");
-    setStep(2);
+    setStep(2); 
     setTimeout(()=>passRef.current?.focus(), 350);
   };
 
-  const handlePassSubmit = (e) => {
-    e.preventDefault();
-    const result = onLogin(found.user, pass);
-    if (!result) {
-      triggerShake();
-      setErr("Contraseña incorrecta.");
-    }
+  const handlePassSubmit = async (e) => {
+  e.preventDefault();
+  const result = await onLogin(found.user, pass);
+  if (!result) {
+    triggerShake();
+    setErr("Contraseña incorrecta.");
+  }
   };
 
   const resetFlow = () => {
