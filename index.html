@@ -279,23 +279,7 @@ function createApi(db, setDb) {
       } catch(e) { return null; }
     },
     // ── ALUMNOS (API real) ──
-    getStudents: async () => {
-      try {
-        const data = await apiFetch("/api/alumnos");
-        // Adaptar formato del backend al formato del frontend
-        return data.map(a => ({
-          id: a.num_control,
-          name: a.nombre,
-          belt: a.cinta_color || "Blanco",
-          parent: a.responsable_nombre || "",
-          joined: a.fecha_ingreso,
-          active: true,
-          user: a.num_control,
-          pass: "1234",
-          personal: {address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}
-        }));
-      } catch(e) { return db.students; }
-    },
+    getStudents: () => db.students,
     getStudent: (id) => db.students.find(s=>s.id===id),
     addStudent: async (d) => {
       try {
@@ -313,25 +297,7 @@ function createApi(db, setDb) {
     updateStudentPersonal:(id,personal)=>mutate(db=>({students:db.students.map(s=>s.id===id?{...s,personal:{...s.personal,...personal}}:s)})),
     deleteStudent:(id)=>mutate(db=>({students:db.students.filter(s=>s.id!==id)})),
     // ── PAGOS (API real) ──
-    getPayments: async () => {
-      try {
-        const data = await apiFetch("/api/pagos");
-        return data.map(p => ({
-          id: String(p.id_pago),
-          sid: p.num_control_responsable,
-          concept: p.tipo_pago,
-          total: parseFloat(p.monto_total),
-          paid: parseFloat(p.monto_abonado),
-          installments: p.metodo_pago === "A plazos" ? 4 : 1,
-          instPaid: p.estado_pago === "Liquidado" ? 1 : 0,
-          instAmt: parseFloat(p.monto_total),
-          start: p.fecha_pago,
-          nextDue: null,
-          status: p.estado_pago === "Liquidado" ? "liquidado" : p.estado_pago === "Vencido" ? "vencido" : "en_proceso",
-          notes: ""
-        }));
-      } catch(e) { return db.payments; }
-    },
+    getPayments: () => db.payments,
     getStudentPayments:(sid)=>db.payments.filter(p=>p.sid===sid),
     addPayment: async (d) => {
       try {
@@ -400,17 +366,7 @@ function createApi(db, setDb) {
       return addMonths(xs.length>0?xs[0].date:(s?.joined||todayStr()),EXAM_MONTHS);
     },
     // ── INVENTARIO (API real) ──
-    getInventory: async () => {
-      try {
-        const data = await apiFetch("/api/inventario");
-        const inv = {...db.inventory};
-        data.forEach(item => {
-          const key = item.descripcion.toLowerCase().replace(/\s+/g,"_");
-          inv[key] = {qty: item.stock, minStock: item.stock_minimo, id_articulo: item.id_articulo};
-        });
-        return inv;
-      } catch(e) { return db.inventory; }
-    },
+    getInventory: () => db.inventory,
     updateInventoryItem:(itemId,data)=>mutate(db=>({inventory:{...db.inventory,[itemId]:{...db.inventory[itemId],...data}}})),
     adjustStock: async (itemId, delta) => {
       mutate(db=>{
