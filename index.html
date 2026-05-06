@@ -808,6 +808,15 @@ const LoginPage = ({onLogin, db}) => {
     setStep(2);
     setTimeout(()=>passRef.current?.focus(), 350);
   };
+  
+  const handlePassSubmit = async (e) => {
+    e.preventDefault();
+    const result = await onLogin(found.user, pass);
+    if (!result) {
+      triggerShake();
+      setErr("Contraseña incorrecta.");
+    }
+  };
 
   const resetFlow = () => {
     setStep(1); setIdVal(""); setFound(null); setPass(""); setErr("");
