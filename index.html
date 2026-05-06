@@ -1633,7 +1633,8 @@ function App() {
         id: a.num_control, name: a.nombre,
         age: a.fecha_nacimiento ? Math.floor((new Date()-new Date(a.fecha_nacimiento))/(365.25*24*60*60*1000)) : 0,
         belt: a.cinta_color||"Blanco", parent: a.responsable_nombre||"",
-        phone:"", email:"", joined: a.fecha_ingreso||todayStr(), active:true,
+        phone:"", email:"", joined: a.fecha_ingreso ? a.fecha_ingreso.split('T')[0] : todayStr(), active:true,
+        phone: a.responsable_tel || "",
         user: a.num_control, pass:"1234",
         personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}
       })) : [];
