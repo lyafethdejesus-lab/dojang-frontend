@@ -247,7 +247,7 @@ const fmtDate = (d) => {
 };
 const mxn = (n) => `$${Number(n).toLocaleString("es-MX")}`;
 function monthsBetween(d1,d2){const a=parseDate(d1),b=parseDate(d2);return(b.getFullYear()-a.getFullYear())*12+(b.getMonth()-a.getMonth())}
-function addMonths(dateStr,n){const d=parseDate(dateStr);d.setMonth(d.getMonth()+n);return d.toISOString().split("T")[0]}
+function addMonths(dateStr,n){if(!dateStr)return todayStr();const d=parseDate(dateStr);if(isNaN(d.getTime()))return todayStr();d.setMonth(d.getMonth()+n);return d.toISOString().split("T")[0]}
 function daysUntil(dateStr){const t=parseDate(todayStr()),tgt=parseDate(dateStr);return Math.round((tgt-t)/(1000*60*60*24))}
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
