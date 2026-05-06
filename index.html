@@ -293,16 +293,22 @@ function createApi(db, setDb) {
     getStudents: () => db.students,
     getStudent: (id) => db.students.find(s=>s.id===id),
     addStudent: async (d) => {
+      const beltMap = {"Blanco":1,"Amarillo":2,"Naranja":3,"Verde":4,"Azul":5,"Morado":6,"Rojo":7,"Negro":8};
       try {
-        await apiFetch("/api/alumnos", {method:"POST", body: JSON.stringify({
-          num_control: uid("s"),
+        await apiFetch("/api/alumnos/registro-completo", {method:"POST", body: JSON.stringify({
+          num_control: d.user || d.id,
           nombre: d.name,
           fecha_nacimiento: d.dob || "2000-01-01",
-          id_cinta_actual: 1,
-          num_control_responsable: d.parentId || "resp_default"
+          id_cinta_actual: beltMap[d.belt] || 1,
+          responsable_nombre: d.parent || "Sin tutor",
+          responsable_telefono: d.phone || "",
+          responsable_direccion: d.personal?.address || "",
+          username: d.user || d.id,
+          password: d.pass || "CAMBIAR"
         })});
-      } catch(e) {}
-      mutate(db=>({students:[...db.students,{...d,id:uid("s"),personal:d.personal||{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}}]}));
+      } catch(e) { console.error("Error registrando alumno:", e); }
+      mutate(db=>({students:[...db.students,{...d,id:d.user||d.id,
+        personal:d.personal||{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}}]}));
     },
     updateStudent:(id,d)=>mutate(db=>({students:db.students.map(s=>s.id===id?{...s,...d}:s)})),
     updateStudentPersonal:(id,personal)=>mutate(db=>({students:db.students.map(s=>s.id===id?{...s,personal:{...s.personal,...personal}}:s)})),
