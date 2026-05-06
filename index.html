@@ -1607,15 +1607,13 @@ function App() {
 
   useEffect(()=>{
     // Carga alumnos públicamente para que el login del paso 1 los encuentre
-    fetch(API_URL+"/api/alumnos").then(r=>r.json()).then(students=>{
+    fetch(API_URL+"/api/alumnos/publico").then(r=>r.json()).then(students=>{
       if(!Array.isArray(students)) return;
       const mapped = students.map(a=>({
         id: a.num_control, name: a.nombre,
-        age: a.fecha_nacimiento ? Math.floor((new Date()-new Date(a.fecha_nacimiento))/(365.25*24*60*60*1000)) : 0,
-        belt: a.cinta_color||"Blanco", parent: a.responsable_nombre||"",
-        phone:"", email:"", joined: a.fecha_ingreso||todayStr(), active:true,
-        user: a.num_control, pass: a.pass||"1234",
-        firstLogin: a.pass==="CAMBIAR"||!a.pass,
+        age: 0, belt: "Blanco", parent: "", phone: "", email: "",
+        joined: "", active: true,
+        user: a.num_control, pass: "CAMBIAR", firstLogin: true,
         personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}
       }));
       setDb(prev=>({...prev, students: mapped}));
