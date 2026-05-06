@@ -284,7 +284,7 @@ function createApi(db, setDb) {
         });
         if(data.token) {
           _token = data.token;
-          return {role: data.rol === "admin" ? "admin" : data.rol, name: user};
+          return {role: data.rol === "admin" ? "admin" : data.rol, name: user, id: user};
         }
         return null;
       } catch(e) { return null; }
@@ -1663,6 +1663,7 @@ function App() {
 
   const handleLogin=useCallback(async (user,pass,isFirstLogin=false)=>{
     setLoading(true);
+    setSession(null);
     // Si es primer acceso, primero cambia la contraseña en la API
     if(isFirstLogin){
       try {
@@ -1678,7 +1679,12 @@ function App() {
       } catch(e){ console.log("Error cambiando contraseña:",e); }
     }
     const result=await api.login(user,pass);
-    if(result){ await loadApiData(_token); setSession(result); }
+    if(result){
+      await loadApiData(_token);
+      // Asegurar que id esté en la sesión
+      const sessionWithId = {...result, id: result.id || user};
+      setSession(sessionWithId);
+    }
     setLoading(false);
     return result;
   },[db]);
