@@ -870,9 +870,9 @@ const LoginPage = ({onLogin, db}) => {
                     className="tk-input"
                     value={idVal}
                     onChange={e=>{setIdVal(e.target.value);setErr("");}}
-                    placeholder="Ej. 1001"
+                    placeholder="Ej. AT-2026YL001"
                     style={{fontSize:22,letterSpacing:4,textAlign:"center",fontFamily:"'Bebas Neue',sans-serif",padding:"12px"}}
-                    maxLength={8}
+                    maxLength={20}
                   />
                   {err && <div style={{color:"#f87171",fontSize:12,marginTop:8,display:"flex",alignItems:"center",gap:6}}><span>⚠</span>{err}</div>}
                   <div style={{fontSize:11,color:"#333355",marginTop:8,textAlign:"center"}}>Solo tú conoces tu ID. No lo compartas.</div>
