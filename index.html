@@ -312,7 +312,10 @@ function createApi(db, setDb) {
     },
     updateStudent:(id,d)=>mutate(db=>({students:db.students.map(s=>s.id===id?{...s,...d}:s)})),
     updateStudentPersonal:(id,personal)=>mutate(db=>({students:db.students.map(s=>s.id===id?{...s,personal:{...s.personal,...personal}}:s)})),
-    deleteStudent:(id)=>mutate(db=>({students:db.students.filter(s=>s.id!==id)})),
+    deleteStudent: async (id) => {
+      try { await apiFetch(`/api/alumnos/${id}`, {method:"DELETE"}); } catch(e) { console.error("Error eliminando:", e); }
+      mutate(db=>({students:db.students.filter(s=>s.id!==id)}));
+    },
     // ── PAGOS (API real) ──
     getPayments: () => db.payments,
     getStudentPayments:(sid)=>db.payments.filter(p=>p.sid===sid),
@@ -757,11 +760,7 @@ const EditStockModal = ({item,data,api,onToast,onClose}) => {
 // ─── LOGIN — FLUJO 3 PASOS ────────────────────────────────────────────────────
 // Lookup table: id numérico → {user, role, periodo}
 const ID_LOOKUP = {
-  "0001": {user:"admin",  role:"admin",   nombre:"Maestro Ramírez",  periodo:"Abr–May 2026"},
-  "1001": {user:"carlos_m", role:"alumno",  nombre:"Carlos Mendoza",   periodo:"Mar–May 2026"},
-  "1002": {user:"sofia_r",  role:"alumno",  nombre:"Sofía Ruiz",       periodo:"Mar–May 2026"},
-  "1003": {user:"diego_t",  role:"alumno",  nombre:"Diego Torres",     periodo:"Mar–May 2026"},
-  "1004": {user:"valentina_c",role:"alumno",nombre:"Valentina Cruz",   periodo:"Mar–May 2026"},
+  "0001": {user:"admin", role:"admin", nombre:"Maestro Ramírez", periodo:"Abr-May 2026"},
 };
 
 const ROLE_LABELS = {admin:"Administrador", alumno:"Alumno", maestro:"Instructor", representante:"Representante"};
@@ -782,10 +781,7 @@ const LoginPage = ({onLogin, db}) => {
 
   // demos rápidos
   const demos = [
-    {label:"Admin",     id:"0001"},
-    {label:"Carlos",    id:"1001"},
-    {label:"Sofía",     id:"1002"},
-    {label:"Diego",     id:"1003"},
+    {label:"Admin", id:"0001"},
   ];
 
   const triggerShake = () => {
