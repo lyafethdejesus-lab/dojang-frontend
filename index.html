@@ -766,6 +766,8 @@ const LoginPage = ({onLogin, db}) => {
   const [idVal, setIdVal]   = useState("");
   const [found, setFound]   = useState(null);
   const [pass, setPass]     = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [newPass2, setNewPass2] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [err, setErr]       = useState("");
   const [shake, setShake]   = useState(false);
@@ -808,9 +810,17 @@ const LoginPage = ({onLogin, db}) => {
     setStep(2);
     setTimeout(()=>passRef.current?.focus(), 350);
   };
-  
+
   const handlePassSubmit = async (e) => {
     e.preventDefault();
+    // Detectar si es primer acceso (contraseña CAMBIAR)
+    if(db && db.students){
+      const alumno = db.students.find(s=>s.id===found.user||s.user===found.user);
+      if(alumno && (alumno.pass==="CAMBIAR"||alumno.firstLogin)){
+        setStep(3); // paso extra: elegir contraseña
+        return;
+      }
+    }
     const result = await onLogin(found.user, pass);
     if (!result) {
       triggerShake();
@@ -947,6 +957,33 @@ const LoginPage = ({onLogin, db}) => {
           </div>
         )}
 
+        {step===3&&(
+        <div className="card" style={{padding:26,marginTop:16}}>
+          <div style={{marginBottom:16,color:"#9090b0",fontSize:13,textAlign:"center"}}>
+            Es tu primer acceso. Elige una contraseña para tu cuenta.
+          </div>
+          <div style={{marginBottom:12}}>
+            <label className="tk-label">Nueva contraseña</label>
+            <input className="tk-input" type="password" value={newPass}
+              onChange={e=>setNewPass(e.target.value)} placeholder="Mínimo 4 caracteres"/>
+          </div>
+          <div style={{marginBottom:16}}>
+            <label className="tk-label">Confirmar contraseña</label>
+            <input className="tk-input" type="password" value={newPass2}
+              onChange={e=>setNewPass2(e.target.value)} placeholder="Repite la contraseña"/>
+          </div>
+          {newPass&&newPass2&&newPass!==newPass2&&<div style={{color:"#f87171",fontSize:12,marginBottom:8}}>⚠ Las contraseñas no coinciden</div>}
+          <button className="tk-btn btn-red" style={{width:"100%",justifyContent:"center",padding:"11px 0",fontSize:14}}
+            disabled={newPass.length<4||newPass!==newPass2}
+            onClick={async()=>{
+              const result = await onLogin(found.user, newPass, true);
+              if(!result){ setErr("Error al crear contraseña."); setStep(2); }
+            }}>
+            Crear contraseña y entrar →
+          </button>
+        </div>
+        )}
+
         {/* Demo hints */}
         <div style={{marginTop:20,padding:"13px 16px",background:"rgba(255,255,255,.02)",borderRadius:8,border:"1px solid #161626"}}>
           <div style={{fontSize:10,color:"#333355",letterSpacing:1,textTransform:"uppercase",marginBottom:9}}>IDs de demo</div>
@@ -981,7 +1018,7 @@ const LoginPage = ({onLogin, db}) => {
 
 // ─── STUDENT FORM ─────────────────────────────────────────────────────────────
 const StudentForm = ({initial,onSave,onClose,api}) => {
-  const empty={name:"",age:"",belt:"Blanco",parent:"",phone:"",email:"",joined:todayStr(),active:true,user:"",pass:"1234",personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}};
+  const empty={name:"",age:"",belt:"Blanco",parent:"",phone:"",email:"",joined:todayStr(),active:true,user:"",pass:"CAMBIAR",personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}};
   const [f,setF] = useState(initial||empty);
   const set = (k,v)=>setF(p=>({...p,[k]:v}));
   const setP = (k,v)=>setF(p=>({...p,personal:{...p.personal,[k]:v}}));
@@ -1559,8 +1596,25 @@ const StudentPortal = ({session,api,onLogout}) => {
 function App() {
   const [db,setDb]=useState(INIT_DB);
   const [session,setSession]=useState(null);
-  const [loading,setLoading]=useState(false);
+  const [loading,setLoading]=useState(true);
   const api=createApi(db,setDb);
+
+  useEffect(()=>{
+    // Carga alumnos públicamente para que el login del paso 1 los encuentre
+    fetch(API_URL+"/api/alumnos").then(r=>r.json()).then(students=>{
+      if(!Array.isArray(students)) return;
+      const mapped = students.map(a=>({
+        id: a.num_control, name: a.nombre,
+        age: a.fecha_nacimiento ? Math.floor((new Date()-new Date(a.fecha_nacimiento))/(365.25*24*60*60*1000)) : 0,
+        belt: a.cinta_color||"Blanco", parent: a.responsable_nombre||"",
+        phone:"", email:"", joined: a.fecha_ingreso||todayStr(), active:true,
+        user: a.num_control, pass: a.pass||"1234",
+        firstLogin: a.pass==="CAMBIAR"||!a.pass,
+        personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}
+      }));
+      setDb(prev=>({...prev, students: mapped}));
+    }).catch(()=>{}).finally(()=>setLoading(false));
+  },[]);
 
   const loadApiData = async (tok) => {
     try {
@@ -1602,8 +1656,22 @@ function App() {
     } catch(e){ console.log("Usando datos locales:",e); }
   };
 
-  const handleLogin=useCallback(async (user,pass)=>{
+  const handleLogin=useCallback(async (user,pass,isFirstLogin=false)=>{
     setLoading(true);
+    // Si es primer acceso, primero cambia la contraseña en la API
+    if(isFirstLogin){
+      try {
+        // Login con contraseña temporal para obtener token
+        const tmp = await api.login(user,"CAMBIAR");
+        if(tmp && _token){
+          await fetch(API_URL+"/api/auth/cambiar-pass",{
+            method:"POST",
+            headers:{"Content-Type":"application/json","Authorization":`Bearer ${_token}`},
+            body: JSON.stringify({nuevaPassword: pass})
+          });
+        }
+      } catch(e){ console.log("Error cambiando contraseña:",e); }
+    }
     const result=await api.login(user,pass);
     if(result){ await loadApiData(_token); setSession(result); }
     setLoading(false);
