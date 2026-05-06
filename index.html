@@ -819,13 +819,10 @@ const LoginPage = ({onLogin, db}) => {
 
   const handlePassSubmit = async (e) => {
     e.preventDefault();
-    // Detectar si es primer acceso (contraseña CAMBIAR)
-    if(db && db.students){
-      const alumno = db.students.find(s=>s.id===found.user||s.user===found.user);
-      if(alumno && (alumno.pass==="CAMBIAR"||alumno.firstLogin)){
-        setStep(3); // paso extra: elegir contraseña
-        return;
-      }
+    // Si el usuario escribió "CAMBIAR" como contraseña, ir al paso 3
+    if(pass.toUpperCase() === "CAMBIAR"){
+      setStep(3);
+      return;
     }
     const result = await onLogin(found.user, pass);
     if (!result) {
@@ -1613,7 +1610,7 @@ function App() {
         id: a.num_control, name: a.nombre,
         age: 0, belt: "Blanco", parent: "", phone: "", email: "",
         joined: "", active: true,
-        user: a.num_control, pass: "CAMBIAR", firstLogin: true,
+        user: a.num_control, pass: "REAL", firstLogin: false,
         personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}
       }));
       setDb(prev=>({...prev, students: mapped}));
