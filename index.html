@@ -304,13 +304,35 @@ function createApi(db, setDb) {
           responsable_telefono: d.phone || "",
           responsable_direccion: d.personal?.address || "",
           username: d.user || d.id,
-          password: d.pass || "CAMBIAR"
+          password: d.pass || "CAMBIAR",
+          email: d.email || "",
+          direccion: d.personal?.address || "",
+          tipo_sangre: d.personal?.blood || "",
+          contacto_emergencia: d.personal?.emergency || "",
+          tel_emergencia: d.personal?.emergencyPhone || "",
+          notas_medicas: d.personal?.medNotes || ""
         })});
       } catch(e) { console.error("Error registrando alumno:", e); }
       mutate(db=>({students:[...db.students,{...d,id:d.user||d.id,
         personal:d.personal||{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}}]}));
     },
-    updateStudent:(id,d)=>mutate(db=>({students:db.students.map(s=>s.id===id?{...s,...d}:s)})),
+    updateStudent: async (id, d) => {
+      const beltMap = {"Blanco":1,"Amarillo":2,"Naranja":3,"Verde":4,"Azul":5,"Morado":6,"Rojo":7,"Negro":8};
+      try {
+        await apiFetch(`/api/alumnos/${id}`, {method:"PUT", body: JSON.stringify({
+          nombre: d.name,
+          fecha_nacimiento: d.dob || "2000-01-01",
+          id_cinta_actual: beltMap[d.belt] || 1,
+          email: d.email || "",
+          direccion: d.personal?.address || "",
+          tipo_sangre: d.personal?.blood || "",
+          contacto_emergencia: d.personal?.emergency || "",
+          tel_emergencia: d.personal?.emergencyPhone || "",
+          notas_medicas: d.personal?.medNotes || ""
+        })});
+      } catch(e) { console.error("Error actualizando alumno:", e); }
+      mutate(db=>({students:db.students.map(s=>s.id===id?{...s,...d}:s)}));
+    },
     updateStudentPersonal:(id,personal)=>mutate(db=>({students:db.students.map(s=>s.id===id?{...s,personal:{...s.personal,...personal}}:s)})),
     deleteStudent: async (id) => {
       try { await apiFetch(`/api/alumnos/${id}`, {method:"DELETE"}); } catch(e) { console.error("Error eliminando:", e); }
@@ -789,16 +811,35 @@ const LoginPage = ({onLogin, db}) => {
     setTimeout(()=>setShake(false), 500);
   };
 
-  const handleIdSubmit = (e) => {
+  const handleIdSubmit = async (e) => {
     e.preventDefault();
     const trimmed = idVal.trim();
-    // Primero busca en el lookup estático (admin y demos)
+    // Primero busca en el lookup estático (admin)
     let match = ID_LOOKUP[trimmed];
     // Si no está ahí, busca en los alumnos reales cargados en db
     if (!match && db && db.students) {
-      const alumno = db.students.find(s => s.id === trimmed || s.user === trimmed);
+      let students = db.students;
+      // Si la lista está vacía (backend dormido al arrancar), reintentar la carga
+      if (students.length === 0) {
+        try {
+          setErr("Verificando ID...");
+          const res = await fetch(API_URL + "/api/alumnos/publico");
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            students = data;
+            setDb(prev => ({...prev, students: data.map(a => ({
+              id: a.num_control, name: a.nombre, age: 0, belt: "Blanco",
+              parent: "", phone: "", email: "", joined: "", active: true,
+              user: a.num_control, pass: "REAL", firstLogin: false,
+              personal: {address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}
+            }))}));
+          }
+        } catch(_) {}
+        setErr("");
+      }
+      const alumno = students.find(s => s.num_control === trimmed || s.id === trimmed || s.user === trimmed);
       if (alumno) {
-        match = {user: alumno.user || alumno.id, role: "alumno", nombre: alumno.name, periodo: ""};
+        match = {user: alumno.num_control || alumno.user || alumno.id, role: "alumno", nombre: alumno.nombre || alumno.name, periodo: ""};
       }
     }
     if (!match) {
@@ -1626,10 +1667,17 @@ function App() {
         id: a.num_control, name: a.nombre,
         age: a.fecha_nacimiento ? Math.floor((new Date()-new Date(a.fecha_nacimiento))/(365.25*24*60*60*1000)) : 0,
         belt: a.cinta_color||"Blanco", parent: a.responsable_nombre||"",
-        phone:"", email:"", joined: a.fecha_ingreso ? a.fecha_ingreso.split('T')[0] : todayStr(), active:true,
         phone: a.responsable_tel || "",
+        email: a.email || "",
+        joined: a.fecha_ingreso ? a.fecha_ingreso.split('T')[0] : todayStr(), active:true,
         user: a.num_control, pass:"1234",
-        personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}
+        personal:{
+          address: a.direccion || "",
+          blood: a.tipo_sangre || "",
+          emergency: a.contacto_emergencia || "",
+          emergencyPhone: a.tel_emergencia || "",
+          medNotes: a.notas_medicas || ""
+        }
       })) : [];
       const mappedPayments = Array.isArray(payments) ? payments.map(p => ({
         id: String(p.id_pago), sid: p.num_control_responsable,
