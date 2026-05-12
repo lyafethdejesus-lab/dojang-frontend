@@ -269,6 +269,7 @@ async function apiFetch(path, options={}) {
   const headers = {"Content-Type":"application/json"};
   if(_token) headers["Authorization"] = `Bearer ${_token}`;
   const res = await fetch(API_URL + path, {...options, headers});
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
