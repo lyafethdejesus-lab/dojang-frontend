@@ -301,9 +301,7 @@ function createApi(db, setDb) {
         await apiFetch("/api/alumnos/registro-completo", {method:"POST", body: JSON.stringify({
           num_control: d.user || d.id,
           nombre: d.name,
-          fecha_nacimiento: d.dob || "2000-01-01",
-          id_cinta_actual: beltMap[d.belt] || 1,
-          responsable_nombre: d.parent || "Sin tutor",
+          fecha_nacimiento: d.dob || d.fecha_nacimiento || "2000-01-01",
           responsable_telefono: d.phone || "",
           responsable_direccion: d.personal?.address || "",
           username: d.user || d.id,
@@ -324,7 +322,7 @@ function createApi(db, setDb) {
       try {
         await apiFetch(`/api/alumnos/${id}`, {method:"PUT", body: JSON.stringify({
           nombre: d.name,
-          fecha_nacimiento: d.dob || "2000-01-01",
+          fecha_nacimiento: d.dob || d.fecha_nacimiento || "2000-01-01",
           id_cinta_actual: beltMap[d.belt] || 1,
           email: d.email || "",
           direccion: d.personal?.address || "",
@@ -1061,7 +1059,7 @@ const LoginPage = ({onLogin, db}) => {
 
 // ─── STUDENT FORM ─────────────────────────────────────────────────────────────
 const StudentForm = ({initial,onSave,onClose,api}) => {
-  const empty={name:"",age:"",belt:"Blanco",parent:"",phone:"",email:"",joined:todayStr(),active:true,user:"",pass:"CAMBIAR",personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}};
+  const empty={name:"",dob:"",belt:"Blanco",parent:"",phone:"",email:"",joined:todayStr(),active:true,user:"",pass:"CAMBIAR",personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}};
   const [f,setF] = useState(initial||empty);
   const set = (k,v)=>setF(p=>({...p,[k]:v}));
   const setP = (k,v)=>setF(p=>({...p,personal:{...p.personal,[k]:v}}));
@@ -1076,7 +1074,7 @@ const StudentForm = ({initial,onSave,onClose,api}) => {
       <div style={{fontSize:11,color:"#c01212",textTransform:"uppercase",letterSpacing:.8,marginBottom:12}}>Datos del alumno</div>
       <div className="form-row form-row-2">
         <div><label className="tk-label">Nombre completo</label><input className="tk-input" required value={f.name} onChange={e=>handleName(e.target.value)}/></div>
-        <div><label className="tk-label">Edad</label><input className="tk-input" type="number" required min="3" max="99" value={f.age} onChange={e=>set("age",+e.target.value)}/></div>
+        <div><label className="tk-label">Fecha de nacimiento</label><input className="tk-input" type="date" required max={todayStr()} value={f.dob||""} onChange={e=>set("dob",e.target.value)}/></div>
       </div>
       <div className="form-row form-row-2">
         <div><label className="tk-label">Cinturón</label><select className="tk-input" value={f.belt} onChange={e=>set("belt",e.target.value)}>{BELT_LIST.map(b=><option key={b}>{b}</option>)}</select></div>
@@ -1687,6 +1685,7 @@ function App() {
       ]);
       const mappedStudents = Array.isArray(students) ? students.map(a => ({
         id: a.num_control, name: a.nombre,
+        dob: a.fecha_nacimiento ? a.fecha_nacimiento.split('T')[0] : "",
         age: a.fecha_nacimiento ? Math.floor((new Date()-new Date(a.fecha_nacimiento))/(365.25*24*60*60*1000)) : 0,
         belt: a.cinta_color||"Blanco", parent: a.responsable_nombre||"",
         phone: a.responsable_tel || "",
