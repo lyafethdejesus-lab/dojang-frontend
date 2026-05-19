@@ -342,8 +342,13 @@ function createApi(db, setDb) {
     },
     updateStudentPersonal:(id,personal)=>mutate(db=>({students:db.students.map(s=>s.id===id?{...s,personal:{...s.personal,...personal}}:s)})),
     deleteStudent: async (id) => {
-      try { await apiFetch(`/api/alumnos/${id}`, {method:"DELETE"}); } catch(e) { console.error("Error eliminando:", e); }
-      mutate(db=>({students:db.students.filter(s=>s.id!==id)}));
+      try {
+        await apiFetch(`/api/alumnos/${id}`, {method:"DELETE"});
+        mutate(db=>({
+          students: db.students.filter(s=>s.id!==id),
+          payments: db.payments.filter(p=>p.sid!==`RESP-${id}`&&p.sid!==id)
+        }));
+      } catch(e) { console.error("Error eliminando:", e); alert("Error al eliminar alumno. Intenta de nuevo."); }
     },
     // ── PAGOS (API real) ──
     getPayments: () => db.payments,
@@ -395,7 +400,22 @@ function createApi(db, setDb) {
         }]}));
       } catch(e) { console.error("Error torneo:",e); }
     },
-    deletePayment:(id)=>mutate(db=>({payments:db.payments.filter(p=>p.id!==id)})),
+    deletePayment: async (id) => {
+      try { await apiFetch(`/api/pagos/${id}`, {method:"DELETE"}); } catch(e) { console.error("Error eliminando pago:", e); }
+      mutate(db=>({payments:db.payments.filter(p=>p.id!==id)}));
+    },
+    updatePayment: async (id, d) => {
+      try {
+        await apiFetch(`/api/pagos/${id}`, {method:"PUT", body: JSON.stringify({
+          estado_pago: d.estado,
+          monto_abonado: d.abono != null ? d.abono : undefined,
+          metodo_pago: d.metodo,
+          mes_correspondiente: d.mes,
+          anio: d.anio
+        })});
+      } catch(e) { console.error("Error actualizando pago:", e); }
+      mutate(db=>({payments:db.payments.map(p=>p.id===id?{...p,...d}:p)}));
+    },
     registerInstallment: async (id) => {
       try { await apiFetch(`/api/pagos/${id}/abonar`, {method:"PUT", body: JSON.stringify({abono: db.payments.find(p=>p.id===id)?.instAmt || 0})}); } catch(e) {}
       mutate(db=>({
@@ -1231,7 +1251,7 @@ const PaymentForm = ({initial,students,onSave,onClose}) => {
 const MensualidadForm = ({students, onSave, onClose, initial}) => {
   const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
   const hoy = new Date();
-  const empty = {sid:"", mes: MESES[hoy.getMonth()], anio: hoy.getFullYear(), monto: 500, abono: 500, metodo:"Efectivo", estado:"Liquidado", notas:""};
+  const empty = {sid:"", mes: MESES[hoy.getMonth()], anio: hoy.getFullYear(), monto: 500, abono: 0, metodo:"Efectivo", estado:"Pendiente", notas:""};
   const [f,setF] = useState(initial || empty);
   const set = (k,v) => setF(p=>({...p,[k]:v}));
   const submit = (e) => { e.preventDefault(); onSave(f); onClose(); };
@@ -1357,7 +1377,17 @@ const AdminPayments = ({api}) => {
                   <td>{mxn(p.total)}</td>
                   <td>{mxn(p.paid)}</td>
                   <td>{p.metodo||"—"}</td>
-                  <td><span style={{color:estadoColor(p.estado||p.status),fontWeight:600,fontSize:12}}>{p.estado||p.status||"—"}</span></td>
+                  <td>
+                    <select value={p.estado||p.status||"Pendiente"}
+                      onChange={e=>api.updatePayment(p.id,{estado:e.target.value})}
+                      style={{background:"transparent",border:"1px solid #2a2a3e",borderRadius:6,padding:"3px 8px",
+                        color:estadoColor(p.estado||p.status),fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                      <option value="Pendiente">Pendiente</option>
+                      <option value="En proceso">En proceso</option>
+                      <option value="Liquidado">Liquidado</option>
+                      <option value="Vencido">Vencido</option>
+                    </select>
+                  </td>
                   <td><div style={{display:"flex",gap:6}}>
                     <button className="tk-btn btn-ghost btn-sm" onClick={()=>setModal({editMens:p})}><Icon name="edit" size={13}/></button>
                     <button className="tk-btn btn-danger btn-sm" onClick={()=>api.deletePayment(p.id)}><Icon name="trash" size={13}/></button>
