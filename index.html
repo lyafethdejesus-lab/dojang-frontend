@@ -323,7 +323,11 @@ function createApi(db, setDb) {
         await apiFetch(`/api/alumnos/${id}`, {method:"PUT", body: JSON.stringify({
           nombre: d.name,
           fecha_nacimiento: d.dob || d.fecha_nacimiento || "2000-01-01",
+          fecha_ingreso: d.joined || todayStr(),
           id_cinta_actual: beltMap[d.belt] || 1,
+          responsable_nombre: d.parent || "",
+          responsable_telefono: d.phone || "",
+          responsable_direccion: d.personal?.address || "",
           email: d.email || "",
           direccion: d.personal?.address || "",
           tipo_sangre: d.personal?.blood || "",
