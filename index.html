@@ -375,7 +375,7 @@ function createApi(db, setDb) {
     },
     updatePayment:(id,d)=>mutate(db=>({payments:db.payments.map(p=>p.id===id?{...p,...d}:p)})),
     deletePayment:(id)=>mutate(db=>({payments:db.payments.filter(p=>p.id!==id)})),
-    pagarMensualidad: async (student, checked, mes, anio, fecha, nuevoEstado) => {
+    pagarMensualidad: async (student, checked, mes, anio, fecha) => {
       const respId = student.respId || `RESP-${student.id}`;
       const existing = db.payments.find(p => {
         if (p.concept !== "Mensualidad") return false;
@@ -547,8 +547,7 @@ function createApi(db, setDb) {
           nombre: d.nombre, dia_semana: d.dia_semana, hora_inicio: d.hora_inicio, hora_fin: d.hora_fin, id_instructor: d.id_instructor||1
         })});
         if(resp?.id_clase){
-          const instr = db.instructores.find(i=>String(i.id)===String(d.id_instructor));
-          mutate(db=>({clases:[...db.clases,{id:String(resp.id_clase),nombre:d.nombre,dias:d.dia_semana,horaInicio:d.hora_inicio.slice(0,5),horaFin:d.hora_fin.slice(0,5),instructorId:String(d.id_instructor||"1"),instructorNombre:instr?.nombre||""}]}));
+          mutate(db=>({clases:[...db.clases,{id:String(resp.id_clase),nombre:d.nombre,dias:d.dia_semana,horaInicio:d.hora_inicio.slice(0,5),horaFin:d.hora_fin.slice(0,5)}]}));
           return;
         }
       } catch(e){ console.error(e); }
@@ -559,10 +558,7 @@ function createApi(db, setDb) {
           nombre: d.nombre, dia_semana: d.dia_semana, hora_inicio: d.hora_inicio, hora_fin: d.hora_fin, id_instructor: d.id_instructor||1
         })});
       } catch(e){ console.error(e); }
-      mutate(db=>{
-        const instr = db.instructores.find(i=>String(i.id)===String(d.id_instructor));
-        return {clases:db.clases.map(c=>c.id===id?{...c,nombre:d.nombre,dias:d.dia_semana,horaInicio:d.hora_inicio.slice(0,5),horaFin:d.hora_fin.slice(0,5),instructorId:String(d.id_instructor||"1"),instructorNombre:instr?.nombre||c.instructorNombre}:c)};
-      });
+      mutate(db=>({clases:db.clases.map(c=>c.id===id?{...c,nombre:d.nombre,dias:d.dia_semana,horaInicio:d.hora_inicio.slice(0,5),horaFin:d.hora_fin.slice(0,5)}:c)}));
     },
     deleteClass: async (id) => {
       try { await apiFetch(`/api/clases/${id}`, {method:"DELETE"}); } catch(e){ console.error(e); }
@@ -570,10 +566,6 @@ function createApi(db, setDb) {
     },
     assignClass: async (alumnoId, claseId) => {
       try { await apiFetch(`/api/clases/alumno/${alumnoId}`, {method:"PUT", body: JSON.stringify({id_clase:claseId||null})}); } catch(e){ console.error(e); }
-      mutate(db=>{
-        const cl = db.clases.find(c=>c.id===String(claseId));
-        return {students: db.students.map(s=>s.id===alumnoId?{...s,claseId:claseId||null,claseNombre:cl?.nombre||null,claseDias:cl?.dias||null}:s)};
-      });
     },
     // ── EQUIPO ──
     getEquipo: () => db.equipo,
@@ -608,7 +600,7 @@ function createApi(db, setDb) {
     addTorneo: async (d) => {
       try {
         const resp = await apiFetch("/api/torneos", {method:"POST", body: JSON.stringify({
-          nombre_torneo: d.nombre, nombre: d.nombre, sede: d.sede, fecha: d.fecha, categoria: d.categoria||""
+          nombre_torneo: d.nombre, sede: d.sede, fecha: d.fecha
         })});
         if(resp?.id_torneo){
           mutate(db=>({torneos:[...db.torneos,{...d,id:String(resp.id_torneo)}]}));
@@ -620,7 +612,7 @@ function createApi(db, setDb) {
     updateTorneo: async (id,d) => {
       try {
         await apiFetch(`/api/torneos/${id}`, {method:"PUT", body: JSON.stringify({
-          nombre_torneo: d.nombre, nombre: d.nombre, sede: d.sede, fecha: d.fecha, categoria: d.categoria||""
+          nombre_torneo: d.nombre, sede: d.sede, fecha: d.fecha
         })});
       } catch(e){ console.error(e); }
       mutate(db=>({torneos:db.torneos.map(t=>t.id===id?{...t,...d}:t)}));
@@ -1498,16 +1490,14 @@ const MensualidadesPanel = ({api}) => {
                   <td><BeltBadge belt={s.belt}/></td>
                   <td style={{color:"#9090b0",fontWeight:600}}>$500</td>
                   <td style={{textAlign:"center"}}>
-                    <select value={pago?.status||"pendiente"}
-                      onChange={e=>api.pagarMensualidad(s, e.target.value==="liquidado", mes, anio, todayStr(), e.target.value)}
-                      style={{background:"#14141e",border:"1px solid #2a2a40",borderRadius:6,padding:"4px 10px",
-                        color: pagado?"#4ade80": pago?.status==="vencido"?"#f87171": pago?.status==="en_proceso"?"#f1c40f":"#9090b0",
-                        fontSize:12,fontWeight:600,cursor:"pointer",minWidth:120}}>
-                      <option value="pendiente">⬜ Pendiente</option>
-                      <option value="en_proceso">🟡 En proceso</option>
-                      <option value="liquidado">✅ Liquidado</option>
-                      <option value="vencido">🔴 Vencido</option>
-                    </select>
+                    <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer"}}>
+                      <input type="checkbox" checked={pagado}
+                        onChange={e=>api.pagarMensualidad(s,e.target.checked,mes,anio,todayStr())}
+                        style={{width:18,height:18,cursor:"pointer",accentColor:"#c01212"}}/>
+                      <span style={{color:pagado?"#4ade80":"#f87171",fontSize:13,fontWeight:600,minWidth:70}}>
+                        {pagado?"✓ Pagado":"Pendiente"}
+                      </span>
+                    </label>
                   </td>
                 </tr>
               );
@@ -1776,9 +1766,8 @@ const AdminClases = ({api}) => {
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
                   <div>
                     <div style={{color:"#f0f0fa",fontWeight:700,fontSize:16,marginBottom:4}}>{cl.nombre}</div>
-                    <div style={{color:"#9090b0",fontSize:13}}>📅 {cl.dias||"—"}</div>
+                    <div style={{color:"#9090b0",fontSize:13}}>📅 {cl.dias}</div>
                     <div style={{color:"#9090b0",fontSize:13}}>⏰ {cl.horaInicio} — {cl.horaFin}</div>
-                    <div style={{color:"#60a5fa",fontSize:12,marginTop:2}}>👤 {cl.instructorNombre||"Sin instructor"}</div>
                   </div>
                   <div style={{display:"flex",gap:5}}>
                     <button className="tk-btn btn-ghost btn-sm" onClick={()=>setModal({edit:cl})}><Icon name="edit" size={13}/></button>
@@ -2374,10 +2363,9 @@ function App() {
       })) : [];
       const mappedTorneos = Array.isArray(torneos) ? torneos.map(t=>({
         id: String(t.id_torneo),
-        nombre: t.nombre_torneo||t.nombre||"",
+        nombre: t.nombre_torneo||"",
         sede: t.sede||"",
         fecha: t.fecha ? t.fecha.split('T')[0] : todayStr(),
-        categoria: t.categoria||"",
       })) : [];
 
       const mappedClases = Array.isArray(clases) ? clases.map(c=>({
@@ -2386,8 +2374,6 @@ function App() {
         dias: c.dia_semana||"",
         horaInicio: c.hora_inicio ? c.hora_inicio.slice(0,5) : "",
         horaFin: c.hora_fin ? c.hora_fin.slice(0,5) : "",
-        instructorId: c.id_instructor ? String(c.id_instructor) : null,
-        instructorNombre: c.instructor_nombre||"",
       })) : [];
 
       const mappedEquipo = Array.isArray(equipo) ? equipo.map(e=>({
